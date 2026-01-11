@@ -1,4 +1,4 @@
-# Learn K8s
+# A Gentle Intro To K8s
 In this lab, we experiment with the various tools to learn K8s. 
 
 ![flow](flow.png)
