@@ -22,7 +22,7 @@ In this lab, we experiment with the various tools to learn K8s.
 
 ## Decisions
 ### Why golang?
-I chose Go because it’s expressive and compiles quickly. More than that, Go’s philosophy centers on simplicity. What you build can be complex, but fight--to the extent that you can--to keep things simple. 
+I chose Go because it’s expressive and compiles quickly. More than that, Go’s philosophy centers on simplicity. What you build can be complex, but you should always fight--to the extent that you can--to keep things simple. 
 
 The main function is only 6 lines: 
 ```go
