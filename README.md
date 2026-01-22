@@ -466,6 +466,17 @@ learn-k8s-9f554cb4f-nxj2h   1/1     Running   0          8m19s
 Look at the hostnames. 
 - What strategy does the load balancer use?
 
+## Add a "networking" container to the existing pods
+Because we used a 2-stage build for our container image, we have no way of running commands to verify network connectivity. To solve that problem and to learn about cluster networking, we're going to stand up a container in our existing pods.
+
+Add the following to k8s/deployment.yaml:spec:template:spec:containers
+```yaml
+  - name: netshoot-sidecar
+    image: nicolaka/netshoot
+    command: ["/bin/bash", "-c", "while true; do sleep 3600; done"]
+```
+
+And then run `kubectl apply -f k8s/deployment.yaml`
 
 ### delete resources
 ```bash
@@ -492,3 +503,6 @@ docker image rm learn-k8s:v0.2.0
 ## TODO
 - [ ] actually provide the proper commands to show the veth pair
 - [ ] add ubuntu pods so we can show east/west traffic with ping (no svc needed)
+	- [x] update deployment manifest
+	- [ ] show kubectl commands to verify additional containers in pods
+	- [ ] exec into sidecar container and run various commands to illustrate cluster networking
