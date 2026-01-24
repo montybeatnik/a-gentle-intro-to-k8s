@@ -41,13 +41,18 @@ We'll build the container image using docker (familiar interface and widely popu
 Every design decision comes with a cost. When you reach for a tool, you should think "what does this buy me?". 
 Kubernetes is pervasive. It’s written in Go. Due to its popularity and kubectl’s intuitive interface, it’s a great tool for learning orchestration. It buys you a suite of APIs to deploy and manage your infrastructure. 
 
-## Let's get started
-We're going to build a container image using the small go app. The files for the image specifics as well as the commands are provided. With go, you can choose how you want to package your app. This decision can drastically affect the image size. 
+## What we're going to do
+We're going to build a container image using the small go app. We'll create all the files as wel go, running various verification commands. 
+
+With go, you can choose how you want to package your app. This decision can drastically affect the image size as you'll soon see. 
 
 To illustrate image size, we are going to take a naive approach to building the go image. Then we'll optimize it reducing the size of the image. 
 
 Next, we'll use KIND to deploy our image in a k8s cluster, exploring the kubectl CLI to check the status and get information about the workload. 
 
+Finally, we'll hit our API multiple times to see how the load balancer works, and then we'll tear everything down. 
+
+## Let's get started
 ## Build the image 
 In go, you can ship the container:
 - with the compiler and toolchain (OR)
@@ -60,16 +65,22 @@ This is like leaving the house with a suitcase containing a gift vs just carryin
 #### Create the suitcase file
 ```bash
 cat <<EOF > Dockerfile.suitcase
+# This is the base image we are going to use.
 FROM golang:1.23.5
 
+# Where our application will sit in the container. 
 WORKDIR /app
 
+# We're copying everything from the host into the container. This is not best practice. 
 COPY . .
 
+# Compiling the code into an executable. 
 RUN go build -o server .
 
+# Making a socket available. 
 EXPOSE 8080
 
+# Run the executable. 
 CMD ["./server"]
 EOF
 ```
@@ -295,12 +306,43 @@ That means there’s a veth pair: one end in the pod, one end on the node. We’
 kubectl apply -f k8s/deployment.yaml
 ```
 
+### View the PODS
+```bash
+kubectl get pods
+```
+
 ```bash
 ➜  learn-k8s kubectl get pods 
 NAME                        READY   STATUS    RESTARTS   AGE
 learn-k8s-9f554cb4f-6zcgt   1/1     Running   0          2s
 learn-k8s-9f554cb4f-nxj2h   1/1     Running   0          3s
 ```
+
+## Add a networking sidecar (optional)
+If you want to run tools like `ping`, `dig`, `curl`, or `traceroute` in the same network namespace as your app, add a small sidecar container to the pod template. The sidecar shares the pod network, so it can reach the same IPs and ports as the app container.
+
+Add a second container to `k8s/deployment.yaml`:
+
+```yaml
+      containers:
+        - name: learn-k8s
+          image: learn-k8s:v0.2.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+        - name: net-tools
+          image: nicolaka/netshoot:latest
+          command: ["sleep", "infinity"]
+```
+
+Re-apply the deployment, then exec into the sidecar:
+
+```bash
+kubectl apply -f k8s/deployment.yaml
+kubectl exec -it deploy/learn-k8s -c net-tools -- bash
+```
+
+From that shell, run your networking commands (for example: `ping <ip>`, `dig <name>`, `curl http://<pod-ip>:8080`).
 
 ## Check the veth pair (under construction | kind is different)
 ```bash
@@ -340,7 +382,11 @@ docker exec -it kind-control-plane ip -br addr show <veth_name>
 ```
 
 
-## Try to hit the API
+## Try to hit the API like we did before
+```bash
+curl localhost:8080 | jq 
+```
+
 ```bash
 ➜  learn-k8s  curl localhost:8080 | jq 
   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
@@ -358,13 +404,17 @@ kubectl apply -f k8s/service.yaml
 # kubectl apply -f k8s/.
 ```
 
+
+```bash
+kubectl get svc learn-k8s
+```
+
 ```bash
 ➜  learn-k8s kubectl get svc learn-k8s
 NAME        TYPE       CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
 learn-k8s   NodePort   10.96.195.50   <none>        80:30080/TCP   102s
 ```
-
-Then make the service a NodePort (or update the manifest) so it binds to `30080`:
+Just one more thing (and this is only because of KIND):We need to make the service a NodePort (or update the manifest) so it binds to `30080`:
 
 ```bash
 kubectl patch service learn-k8s -p '{"spec": {"type": "NodePort", "ports": [{"port": 80, "targetPort": 8080, "nodePort": 30080}]}}'
