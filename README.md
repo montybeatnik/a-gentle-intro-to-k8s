@@ -528,6 +528,36 @@ Add the following to k8s/deployment.yaml:spec:template:spec:containers
 
 And then run `kubectl apply -f k8s/deployment.yaml`
 
+### To see the containers in a pod, you can use `describe`:
+```bash
+kubectl describe pod learn-k8s-bc56b56dc-59gnq
+```
+
+### Drop into the shell of the networking sidecar container 
+```bash
+kubectl exec -it learn-k8s-bc56b56dc-59gnq -c  netshoot-sidecar -- bash
+```
+
+### Or drop into the dedicated networking pod 
+```bash
+kubectl exec -it net-tester-7b8f987fc-m9h9f -- bash 
+```
+
+### Run networking commands 
+```bash
+net-tester-7b8f987fc-m9h9f:~# nslookup learn-k8s 
+;; Got recursion not available from 10.96.0.10
+Server:         10.96.0.10
+Address:        10.96.0.10#53
+
+Name:   learn-k8s.default.svc.cluster.local
+Address: 10.96.121.254
+;; Got recursion not available from 10.96.0.10
+
+net-tester-7b8f987fc-m9h9f:~# curl learn-k8s 
+{"time_stamp":"2026-02-02T11:41:10.397106044Z","hostname":"learn-k8s-bc56b56dc-kdtsf"}
+```
+
 ### delete resources
 ```bash
 ➜  learn-k8s kubectl delete -f k8s/. 
@@ -555,4 +585,4 @@ docker image rm learn-k8s:v0.2.0
 - [ ] add ubuntu pods so we can show east/west traffic with ping (no svc needed)
 	- [x] update deployment manifest
 	- [ ] show kubectl commands to verify additional containers in pods
-	- [ ] exec into sidecar container and run various commands to illustrate cluster networking
+	- [x] exec into sidecar container and run various commands to illustrate cluster networking
