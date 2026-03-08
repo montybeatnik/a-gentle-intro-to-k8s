@@ -533,6 +533,14 @@ And then run `kubectl apply -f k8s/deployment.yaml`
 kubectl describe pod learn-k8s-bc56b56dc-59gnq
 ```
 
+### You can see both containers in the pod
+```bash
+kubectl get pod learn-k8s-bc56b56dc-kdtsf -o jsonpath='{range .spec.containers[*]}{"- "}{.name}{"\n"}{end}'
+
+- learn-k8s
+- netshoot-sidecar
+```
+
 ### Drop into the shell of the networking sidecar container 
 ```bash
 kubectl exec -it learn-k8s-bc56b56dc-59gnq -c  netshoot-sidecar -- bash
@@ -574,6 +582,56 @@ net-tester-7b8f987fc-8vcv9   1/1     Running   0              61s
 net-tester-7b8f987fc-m9h9f   1/1     Running   3 (3m5s ago)   42d
 ```
 
+## Add a CNI for BGP Peerings
+***Note: Full [guide](https://docs.tigera.io/calico/latest/getting-started/kubernetes/quickstart)***
+```bash
+cat <<EOF > config.yaml
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+  - role: control-plane
+  - role: worker
+  - role: worker
+networking:
+  disableDefaultCNI: true
+  podSubnet: 192.168.0.0/16
+EOF
+```
+
+### Start the cluster
+```bash
+kind create cluster --name=calico-cluster --config=config.yaml
+```
+
+### install calico 
+```bash
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.31.4/manifests/tigera-operator.yaml
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.31.4/manifests/custom-resources.yaml
+```
+
+### setup whisker
+```bash
+kubectl port-forward -n calico-system service/whisker 8081:8081
+```
+***Note: Keep this terminal open throughout the rest of this tutorial. The Whisker web console needs the port forwarding to be active to receive logs.***
+
+### Setup namespace and deploy some pods to test connectivity 
+```bash
+kubectl create namespace quickstart
+kubectl create deployment --namespace=quickstart nginx --image=nginx
+kubectl expose --namespace=quickstart deployment nginx --port=80
+kubectl run --namespace=quickstart access --rm -ti --image busybox /bin/sh
+# now run the following to test connectivity to the nginx server from the busybox node
+wget -qO- http://nginx
+```
+
+
+### Clean up
+```bash
+kind delete cluster --name calico-cluster
+```
+
+
 ### delete resources
 ```bash
 ➜  learn-k8s kubectl delete -f k8s/. 
@@ -599,7 +657,8 @@ docker image rm learn-k8s:v0.2.0
 
 ## TODO
 - [ ] actually provide the proper commands to show the veth pair
-- [ ] add ubuntu pods so we can show east/west traffic with ping (no svc needed)
+- [x] add ubuntu pods so we can show east/west traffic with ping (no svc needed)
 	- [x] update deployment manifest
-	- [ ] show kubectl commands to verify additional containers in pods
+	- [x] show kubectl commands to verify additional containers in pods
 	- [x] exec into sidecar container and run various commands to illustrate cluster networking
+- [ ] add calico as a CNI
