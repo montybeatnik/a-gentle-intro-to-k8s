@@ -558,6 +558,22 @@ net-tester-7b8f987fc-m9h9f:~# curl learn-k8s
 {"time_stamp":"2026-02-02T11:41:10.397106044Z","hostname":"learn-k8s-bc56b56dc-kdtsf"}
 ```
 
+### Scale out net-tester 
+```bash
+kubectl scale --replicas=2 deploy/net-tester
+deployment.apps/net-tester scaled
+```
+
+#### Verify 
+```bash
+ ~/src/github.com/montybeatnik/a-gentle-intro-to-k8s   main  kubectl get pods 
+NAME                         READY   STATUS    RESTARTS       AGE
+learn-k8s-bc56b56dc-kdtsf    2/2     Running   6 (3m5s ago)   42d
+learn-k8s-bc56b56dc-mwpnh    2/2     Running   6 (3m5s ago)   42d
+net-tester-7b8f987fc-8vcv9   1/1     Running   0              61s
+net-tester-7b8f987fc-m9h9f   1/1     Running   3 (3m5s ago)   42d
+```
+
 ### delete resources
 ```bash
 ➜  learn-k8s kubectl delete -f k8s/. 
@@ -579,6 +595,7 @@ No kind clusters found.
 docker image rm learn-k8s:v0.1.0
 docker image rm learn-k8s:v0.2.0
 ```
+
 
 ## TODO
 - [ ] actually provide the proper commands to show the veth pair
