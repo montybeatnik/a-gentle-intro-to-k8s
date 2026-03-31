@@ -1,4 +1,69 @@
 # A Gentle Intro To K8s
+
+- [A Gentle Intro To K8s](#a-gentle-intro-to-k8s)
+  - [What you'll learn](#what-youll-learn)
+  - [Glossary](#glossary)
+  - [Dependencies](#dependencies)
+  - [Decisions](#decisions)
+    - [Why golang?](#why-golang)
+    - [Why Docker](#why-docker)
+    - [Why Kubernetes](#why-kubernetes)
+  - [What we're going to do](#what-were-going-to-do)
+  - [Let's get started](#lets-get-started)
+  - [Build the image](#build-the-image)
+    - [Packing a suitcase (with a gift inside)](#packing-a-suitcase-with-a-gift-inside)
+      - [Create the suitcase file](#create-the-suitcase-file)
+      - [Build the image](#build-the-image-1)
+      - [How big is the image](#how-big-is-the-image)
+    - [Just the gift](#just-the-gift)
+      - [Create the gift file](#create-the-gift-file)
+      - [Build the image](#build-the-image-2)
+      - [How big are the images](#how-big-are-the-images)
+    - [Stand up the container and hit the API](#stand-up-the-container-and-hit-the-api)
+    - [Look at the container](#look-at-the-container)
+    - [The hostname of the container](#the-hostname-of-the-container)
+  - [Kubernetes](#kubernetes)
+    - [Manifest files](#manifest-files)
+      - [Deployment Manifest](#deployment-manifest)
+      - [Service Manifest](#service-manifest)
+  - [Create a KIND cluster with host port mapping](#create-a-kind-cluster-with-host-port-mapping)
+    - [Create the cluster with kind](#create-the-cluster-with-kind)
+  - [What to expect](#what-to-expect)
+    - [Check for pods](#check-for-pods)
+    - [Add the local Docker image into the KIND cluster](#add-the-local-docker-image-into-the-kind-cluster)
+    - [View the container in the infra container:](#view-the-container-in-the-infra-container)
+  - [Let's stand up our app inside the cluster.](#lets-stand-up-our-app-inside-the-cluster)
+    - [View the PODS](#view-the-pods)
+  - [Add a networking sidecar (optional)](#add-a-networking-sidecar-optional)
+  - [Check the veth pair (under construction | kind is different)](#check-the-veth-pair-under-construction--kind-is-different)
+  - [Try to hit the API like we did before](#try-to-hit-the-api-like-we-did-before)
+    - [Deploy your POD and Service](#deploy-your-pod-and-service)
+    - [Load balancer doing its thing](#load-balancer-doing-its-thing)
+    - [K8s commands](#k8s-commands)
+    - [Scale out the hard way](#scale-out-the-hard-way)
+    - [Hit the API again.](#hit-the-api-again)
+      - [Questions](#questions)
+  - [Add a "networking" container to the existing pods](#add-a-networking-container-to-the-existing-pods)
+    - [To see the containers in a pod, you can use `describe`:](#to-see-the-containers-in-a-pod-you-can-use-describe)
+    - [You can see both containers in the pod](#you-can-see-both-containers-in-the-pod)
+    - [Drop into the shell of the networking sidecar container](#drop-into-the-shell-of-the-networking-sidecar-container)
+    - [Or drop into the dedicated networking pod](#or-drop-into-the-dedicated-networking-pod)
+    - [Run networking commands](#run-networking-commands)
+    - [Scale out net-tester](#scale-out-net-tester)
+      - [Verify](#verify)
+  - [Add a CNI for BGP Peerings](#add-a-cni-for-bgp-peerings)
+    - [Start the cluster](#start-the-cluster)
+    - [install calico](#install-calico)
+    - [setup whisker](#setup-whisker)
+    - [Setup namespace and deploy some pods to test connectivity](#setup-namespace-and-deploy-some-pods-to-test-connectivity)
+    - [IP Pools](#ip-pools)
+    - [BGP Peer Info](#bgp-peer-info)
+    - [Clean up](#clean-up)
+    - [delete resources](#delete-resources)
+    - [Delete kind cluster](#delete-kind-cluster)
+    - [Delete images](#delete-images)
+  - [TODO](#todo)
+
 In this lab, we experiment with the various tools to learn K8s. 
 
 ![flow](flow.png)
@@ -625,6 +690,78 @@ kubectl run --namespace=quickstart access --rm -ti --image busybox /bin/sh
 wget -qO- http://nginx
 ```
 
+
+### IP Pools 
+```bash
+kubectl get ippools
+NAME                  CREATED AT
+default-ipv4-ippool   2026-03-24T16:00:29Z
+```
+
+
+### BGP Peer Info 
+```bash
+kubectl exec -n calico-system \
+    $(kubectl get pods -n calico-system -l k8s-app=calico-node \
+    -o jsonpath='{.items[0].metadata.name}') \
+    -- birdcl show protocols all
+```
+
+```bash
+kubectl get nodes -o wide
+NAME                           STATUS   ROLES           AGE   VERSION   INTERNAL-IP   EXTERNAL-IP   OS-IMAGE                         KERNEL-VERSION    CONTAINER-RUNTIME
+calico-cluster-control-plane   Ready    control-plane   34m   v1.29.1   172.19.0.4    <none>        Debian GNU/Linux 12 (bookworm)   6.4.16-linuxkit   containerd://1.7.13
+calico-cluster-worker          Ready    <none>          34m   v1.29.1   172.19.0.3    <none>        Debian GNU/Linux 12 (bookworm)   6.4.16-linuxkit   containerd://1.7.13
+calico-cluster-worker2         Ready    <none>          34m   v1.29.1   172.19.0.2    <none>        Debian GNU/Linux 12 (bookworm)   6.4.16-linuxkit   containerd://1.7.13
+```
+
+
+```bash
+kubectl exec -n calico-system \
+   $(kubectl get pods -n calico-system -l k8s-app=calico-node \
+   -o jsonpath='{.items[0].metadata.name}') \
+   -- birdcl show protocols
+
+Defaulted container "calico-node" out of: calico-node, flexvol-driver (init), ebpf-bootstrap (init), install-cni (init)
+BIRD v0.3.3+birdv1.6.8 ready.
+name     proto    table    state  since       info
+static1  Static   master   up     16:01:01
+kernel1  Kernel   master   up     16:01:01
+device1  Device   master   up     16:01:01
+direct1  Direct   master   up     16:01:01
+Mesh_172_19_0_4 BGP      master   up     16:01:02    Established
+Mesh_172_19_0_2 BGP      master   up     16:01:03    Established
+Global_192_20_30_40 BGP      master   start  16:17:38    Connect
+```
+
+```bash
+kubectl exec -n calico-system \
+   $(kubectl get pods -n calico-system -l k8s-app=calico-node \
+   -o jsonpath='{.items[0].metadata.name}') \
+   -- birdcl show route protocol Mesh_172_19_0_4
+
+Defaulted container "calico-node" out of: calico-node, flexvol-driver (init), ebpf-bootstrap (init), install-cni (init)
+BIRD v0.3.3+birdv1.6.8 ready.
+192.168.240.192/32 via 172.19.0.2 on eth0 [Mesh_172_19_0_4 16:01:02 from 172.19.0.4] * (100/0) [i]
+192.168.240.192/26 via 172.19.0.2 on eth0 [Mesh_172_19_0_4 16:01:02 from 172.19.0.4] (100/0) [i]
+192.168.156.64/26  via 172.19.0.4 on eth0 [Mesh_172_19_0_4 16:01:02] (100/0) [i]
+                   via 172.19.0.4 on eth0 [Mesh_172_19_0_4 16:01:02] (100/0) [i]
+```
+
+
+```bash
+kubectl exec -n calico-system \
+   $(kubectl get pods -n calico-system -l k8s-app=calico-node \
+   -o jsonpath='{.items[0].metadata.name}') \
+   -- birdcl show route where bgp_next_hop = 172.19.0.2
+
+Defaulted container "calico-node" out of: calico-node, flexvol-driver (init), ebpf-bootstrap (init), install-cni (init)
+BIRD v0.3.3+birdv1.6.8 ready.
+192.168.240.192/32 via 172.19.0.2 on eth0 [Mesh_172_19_0_4 16:01:02 from 172.19.0.4] * (100/0) [i]
+192.168.240.192/26 via 172.19.0.2 on eth0 [Mesh_172_19_0_2 16:01:03] * (100/0) [i]
+                   via 172.19.0.2 on eth0 [Mesh_172_19_0_2 16:01:03] (100/0) [i]
+                   via 172.19.0.2 on eth0 [Mesh_172_19_0_4 16:01:02 from 172.19.0.4] (100/0) [i]
+```
 
 ### Clean up
 ```bash
