@@ -14,13 +14,18 @@
     - [Packing a suitcase (with a gift inside)](#packing-a-suitcase-with-a-gift-inside)
       - [Create the suitcase file](#create-the-suitcase-file)
       - [Build the image](#build-the-image-1)
-      - [How big is the image](#how-big-is-the-image)
+      - [How big is the image?](#how-big-is-the-image)
+      - [Example](#example)
     - [Just the gift](#just-the-gift)
       - [Create the gift file](#create-the-gift-file)
       - [Build the image](#build-the-image-2)
-      - [How big are the images](#how-big-are-the-images)
+      - [How big are the images?](#how-big-are-the-images)
+      - [Example](#example-1)
     - [Stand up the container and hit the API](#stand-up-the-container-and-hit-the-api)
+      - [Example output](#example-output)
     - [Look at the container](#look-at-the-container)
+      - [Example](#example-2)
+      - [Example](#example-3)
     - [The hostname of the container](#the-hostname-of-the-container)
   - [Kubernetes](#kubernetes)
     - [Manifest files](#manifest-files)
@@ -30,39 +35,40 @@
     - [Create the cluster with kind](#create-the-cluster-with-kind)
   - [What to expect](#what-to-expect)
     - [Check for pods](#check-for-pods)
+      - [Example](#example-4)
     - [Add the local Docker image into the KIND cluster](#add-the-local-docker-image-into-the-kind-cluster)
     - [View the container in the infra container:](#view-the-container-in-the-infra-container)
+      - [Example](#example-5)
   - [Let's stand up our app inside the cluster.](#lets-stand-up-our-app-inside-the-cluster)
     - [View the PODS](#view-the-pods)
-  - [Add a networking sidecar (optional)](#add-a-networking-sidecar-optional)
-  - [Check the veth pair (under construction | kind is different)](#check-the-veth-pair-under-construction--kind-is-different)
-  - [Try to hit the API like we did before](#try-to-hit-the-api-like-we-did-before)
+  - [Add a networking sidecar container](#add-a-networking-sidecar-container)
+  - [Check the veth pair](#check-the-veth-pair)
+    - [Get the list of interfaces](#get-the-list-of-interfaces)
+      - [Example](#example-6)
+      - [Get the container ID or name.](#get-the-container-id-or-name)
+      - [Example](#example-7)
+  - [Try to hit the API.](#try-to-hit-the-api)
+      - [Example](#example-8)
     - [Deploy your POD and Service](#deploy-your-pod-and-service)
+      - [Example](#example-9)
     - [Load balancer doing its thing](#load-balancer-doing-its-thing)
     - [K8s commands](#k8s-commands)
     - [Scale out the hard way](#scale-out-the-hard-way)
     - [Hit the API again.](#hit-the-api-again)
       - [Questions](#questions)
-  - [Add a "networking" container to the existing pods](#add-a-networking-container-to-the-existing-pods)
-    - [To see the containers in a pod, you can use `describe`:](#to-see-the-containers-in-a-pod-you-can-use-describe)
     - [You can see both containers in the pod](#you-can-see-both-containers-in-the-pod)
-    - [Drop into the shell of the networking sidecar container](#drop-into-the-shell-of-the-networking-sidecar-container)
-    - [Or drop into the dedicated networking pod](#or-drop-into-the-dedicated-networking-pod)
     - [Run networking commands](#run-networking-commands)
-    - [Scale out net-tester](#scale-out-net-tester)
-      - [Verify](#verify)
+  - [Clean up this cluster](#clean-up-this-cluster)
   - [Add a CNI for BGP Peerings](#add-a-cni-for-bgp-peerings)
     - [Start the cluster](#start-the-cluster)
     - [install calico](#install-calico)
     - [setup whisker](#setup-whisker)
     - [Setup namespace and deploy some pods to test connectivity](#setup-namespace-and-deploy-some-pods-to-test-connectivity)
     - [IP Pools](#ip-pools)
+      - [Example](#example-10)
     - [BGP Peer Info](#bgp-peer-info)
     - [Clean up](#clean-up)
-    - [delete resources](#delete-resources)
-    - [Delete kind cluster](#delete-kind-cluster)
     - [Delete images](#delete-images)
-  - [TODO](#todo)
 
 In this lab, we experiment with the various tools to learn K8s. 
 
@@ -89,11 +95,12 @@ In this lab, we experiment with the various tools to learn K8s.
 ### Why golang?
 I chose Go because it’s expressive and compiles quickly. More than that, Go’s philosophy centers on simplicity. What you build can be complex, but you should always fight--to the extent that you can--to keep things simple. 
 
-The main function is only 6 lines: 
+The main function is only 7 lines: 
 ```go
 func main() {
 	http.HandleFunc("/", jsonHandler)
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	log.Printf("standing up server on %v\n", socket)
+	if err := http.ListenAndServe(socket, nil); err != nil {
 		log.Printf("failed to stand up server: %v\n", err)
 	}
 }
@@ -158,17 +165,13 @@ I typically go with the most meaningful and simple name followed by semver, a co
 docker build -f Dockerfile.suitcase -t learn-k8s:v0.1.0 .
 ```
 
-#### How big is the image
+#### How big is the image?
 ```bash
-docker image ls learn-k8s:v0.1.0
+docker image ls learn-k8s
 ```
 
-```bash
-➜  learn-k8s docker image ls learn-k8s:v0.1.0
-
-REPOSITORY                       TAG       IMAGE ID       CREATED          SIZE
-learn-k8s                        v0.1.0    ad0eccda48f9   18 seconds ago   928MB
-```
+#### Example
+![1st-image-size](suitcase-image-size.png)
 
 ### Just the gift
 
@@ -200,18 +203,13 @@ EOF
 docker build -f Dockerfile.gift -t learn-k8s:v0.2.0 .
 ```
 
-#### How big are the images
+#### How big are the images?
 ```bash
 docker image ls learn-k8s
 ```
 
-```bash
-➜  learn-k8s docker image ls learn-k8s
-
-REPOSITORY                       TAG       IMAGE ID       CREATED              SIZE
-learn-k8s                        v0.2.0    e5f7398be391   3 seconds ago        7.7MB
-learn-k8s                        v0.1.0    ad0eccda48f9   About a minute ago   928MB
-```
+#### Example
+![gift-image-size](gift-image-size.png)
 
 There is a considerable difference in the image size. 
 
@@ -229,21 +227,30 @@ docker run --rm -p 8080:8080 learn-k8s:v0.2.0
 curl localhost:8080 | jq .
 ```
 
-### Look at the container 
-```bash
-➜  learn-k8s docker container ls 
-CONTAINER ID   IMAGE              COMMAND     CREATED          STATUS          PORTS                    NAMES
-e82471cb3ffd   learn-k8s:v0.2.0   "/server"   56 seconds ago   Up 54 seconds   0.0.0.0:8080->8080/tcp   elated_meitner
+#### Example output
+```json
+{
+  "time_stamp": "2026-03-31T18:44:10.68935521Z",
+  "hostname": "43ea6b3eaf4a"
+}
 ```
 
-Notice the creative name elated_meitner. If you want to use a more meaningful name, add an arg to the run command. 
+### Look at the container 
+```bash
+docker container ls
+```
+
+#### Example
+![docker-container-ls](docker-container-ls.png)
+
+Notice the creative name eloquent_goldstine. If you want to use a more meaningful name, add an arg to the run command. 
 ```bash
 docker run --rm -p 8080:8080 --name learn-k8s learn-k8s:v0.2.0
 # again in another terminal
-➜  learn-k8s docker container ls 
-CONTAINER ID   IMAGE              COMMAND     CREATED         STATUS         PORTS                    NAMES
-61cdd1480406   learn-k8s:v0.2.0   "/server"   3 seconds ago   Up 2 seconds   0.0.0.0:8080->8080/tcp   learn-k8s
+docker container ls 
 ```
+
+#### Example
 
 ### The hostname of the container 
 In case you were wondering, here is how to grab the hostname of the container. 
@@ -342,9 +349,11 @@ We’ll end up with two pods and one service. The service will round‑robin tra
 We haven’t created any yet, so there should be no pods. Trust but verify.
 
 ```bash
-➜  learn-k8s kubectl get pods 
-No resources found in default namespace.
+kubectl get pods 
 ```
+
+#### Example
+![kubectl-get-pods](kubectl-get-pods.png)
 
 ### Add the local Docker image into the KIND cluster
 KIND runs inside Docker, so it can’t see your local images unless you load them in.
@@ -359,6 +368,9 @@ This shows the image inside the node container where the cluster will pull it fr
 ```bash
 docker exec -it kind-control-plane crictl images
 ```
+
+#### Example
+![crictl-images](crictl-images.png)
 
 In case it's not obvious (and why would it be?) the image is `docker.io/library/learn-k8s`. 
 
@@ -383,12 +395,13 @@ learn-k8s-9f554cb4f-6zcgt   1/1     Running   0          2s
 learn-k8s-9f554cb4f-nxj2h   1/1     Running   0          3s
 ```
 
-## Add a networking sidecar (optional)
-If you want to run tools like `ping`, `dig`, `curl`, or `traceroute` in the same network namespace as your app, add a small sidecar container to the pod template. The sidecar shares the pod network, so it can reach the same IPs and ports as the app container.
+## Add a networking sidecar container 
+We used a multi-stage build for out container. This left us with only the binary. If you want to run tools like `ping`, `dig`, `curl`, or `traceroute` in the same network namespace as your app, add a small sidecar container to the pod template. The sidecar shares the pod network, so it can reach the same IPs and ports as the app container.
 
 Add a second container to `k8s/deployment.yaml`:
 
 ```yaml
+# Replace the existing containers var with this block.
       containers:
         - name: learn-k8s
           image: learn-k8s:v0.2.0
@@ -409,64 +422,61 @@ kubectl exec -it deploy/learn-k8s -c net-tools -- bash
 
 From that shell, run your networking commands (for example: `ping <ip>`, `dig <name>`, `curl http://<pod-ip>:8080`).
 
-## Check the veth pair (under construction | kind is different)
+## Check the veth pair
+
+### Get the list of interfaces
 ```bash
-# 1) List pod IDs in the node container
-docker exec -it kind-control-plane crictl pods
-
-# 2) Get the pod sandbox (pause) container ID
-docker exec -it kind-control-plane crictl ps --name learn-k8s
-
-# 3) Find the netns path for that sandbox container
-docker exec -it kind-control-plane crictl inspect <POD_SANDBOX_ID> | jq -r '.info.runtimeSpec.linux.namespaces[] | select(.type=="network") | .path'
-# docker exec -it kind-control-plane crictl inspect bd6265a543cb6 | jq -r '.info.runtimeSpec.linux.namespaces[] | select(.type=="network") | .path'
-
-# ➜  learn-k8s docker exec -it kind-control-plane crictl inspect ac91106fb60dd | jq -r '.info.runtimeSpec.linux.namespaces[] | select(.type=="network") | .path'
-# /proc/1982/ns/net
-
-# 4) Show the veth inside the pod namespace
-docker exec -it kind-control-plane nsenter --net=<NETNS_PATH> ip link
-
-# 5) Show the peer veth on the node side (match by ifindex)
-docker exec -it kind-control-plane ip link
-
-
-# Inside pod netns (pod side IP)
-docker exec -it kind-control-plane nsenter --net=<NETNS_PATH> ip -br addr show eth0
-# ➜  learn-k8s docker exec -it kind-control-plane nsenter --net=/proc/1982/ns/net ip -br addr show eth0
-# eth0@if8         UP             10.244.0.6/24 fe80::8865:8eff:febc:b560/64 
-
-
-# ➜  learn-k8s kubectl get pods -o wide
-# NAME                        READY   STATUS    RESTARTS   AGE   IP           NODE                 NOMINATED NODE   READINESS GATES
-# learn-k8s-9f554cb4f-2hm68   1/1     Running   0          21m   10.244.0.6   kind-control-plane   <none>           <none>
-# learn-k8s-9f554cb4f-lxrr7   1/1     Running   0          21m   10.244.0.5   kind-control-plane   <none>           <none>
-
-# On node (host side IP) — find the matching veth by ifindex from `eth0@ifX`
-docker exec -it kind-control-plane ip -br addr show <veth_name>
+ip l
 ```
 
+#### Example
+![ip-l](ip-l.png)
 
-## Try to hit the API like we did before
+Unless you use a CNI like Multus, you will only have 1 eth interface in your pod. That interface is eth0. 
+
+The veth pair at index 4 reads `eth0`, which is the local namespace interface, connects to `if9` the remote end that lives on the host. 
+
+We go to the host and look for if9. 
+
+#### Get the container ID or name. 
+```bash
+docker container ls 
+```
+
+```bash
+docker exec -it kind-control-plane bash
+```
+
+#### Example
+![kind-node-ip-l](kind-node-ip-l.png)
+
+Show the address with the following: 
+```bash
+ip -br addr show veth51438660
+```
+
+![kind-node-ip-addr](kind-node-ip-addr.png)
+
+Let's pop back over to the pod's sidecar container and run a traceroute to google's DNS. 
+
+![traceroute](traceroute.png)
+
+Now that we've dabbled with the network plumbing a bit, let's try to hit our API running in the pod. 
+
+## Try to hit the API. 
+Before our API was running in a local container via the docker desktop. Now our API is running in a container in a k8s pod. 
 ```bash
 curl localhost:8080 | jq 
 ```
 
-```bash
-➜  learn-k8s  curl localhost:8080 | jq 
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
-curl: (56) Recv failure: Connection reset by peer
-```
+#### Example
+![failed-curl](failed-curl.png)
 
 Bummer! Why isn’t it working? We don’t have a NodePort yet—let’s add the service.
 
 ### Deploy your POD and Service 
 ```bash
 kubectl apply -f k8s/service.yaml
-# or to apply both 
-# kubectl apply -f k8s/.
 ```
 
 
@@ -474,12 +484,21 @@ kubectl apply -f k8s/service.yaml
 kubectl get svc learn-k8s
 ```
 
+![svc](svc.png)
+
+You can drop into the shell of one of the PODs and you can hit the API. 
+
 ```bash
-➜  learn-k8s kubectl get svc learn-k8s
-NAME        TYPE       CLUSTER-IP     EXTERNAL-IP   PORT(S)        AGE
-learn-k8s   NodePort   10.96.195.50   <none>        80:30080/TCP   102s
+kubectl exec -it deploy/learn-k8s -c net-tools -- bash
+curl 10.244.0.8:8080 
 ```
-Just one more thing (and this is only because of KIND):We need to make the service a NodePort (or update the manifest) so it binds to `30080`:
+
+#### Example
+![curl-from-pod](curl-from-pod.png)
+
+Nice! We got a response from the API, yet we cannot reach it directly from the shell of our machines proper. 
+
+To make that happen, we need to make the service a NodePort (or update the manifest) so it binds to `30080`:
 
 ```bash
 kubectl patch service learn-k8s -p '{"spec": {"type": "NodePort", "ports": [{"port": 80, "targetPort": 8080, "nodePort": 30080}]}}'
@@ -488,115 +507,22 @@ kubectl patch service learn-k8s -p '{"spec": {"type": "NodePort", "ports": [{"po
 You can now hit the app at `http://localhost:8080`.
 
 ### Load balancer doing its thing
-```bash
-➜  learn-k8s curl localhost:8080 | jq 
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100    87  100    87    0     0   2541      0 --:--:-- --:--:-- --:--:--  2558
-{
-  "time_stamp": "2026-01-11T10:37:28.087747008Z",
-  "hostname": "learn-k8s-9f554cb4f-6zcgt"
-}
-➜  learn-k8s curl localhost:8080 | jq 
-  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
-                                 Dload  Upload   Total   Spent    Left  Speed
-100    87  100    87    0     0   6044      0 --:--:-- --:--:-- --:--:--  6214
-{
-  "time_stamp": "2026-01-11T10:37:30.431948593Z",
-  "hostname": "learn-k8s-9f554cb4f-nxj2h"
-}
-```
+![curl-load-balancing](curl-load-balancing.png)
 
 ### K8s commands 
 ```bash
-➜  learn-k8s kubectl describe pod learn-k8s-9f554cb4f-6zcgt
-Name:             learn-k8s-9f554cb4f-6zcgt
-Namespace:        default
-Priority:         0
-Service Account:  default
-Node:             kind-control-plane/172.19.0.2
-Start Time:       Sun, 11 Jan 2026 04:36:59 -0600
-Labels:           app=learn-k8s
-                  pod-template-hash=9f554cb4f
-Annotations:      <none>
-Status:           Running
-IP:               10.244.0.9
-IPs:
-  IP:           10.244.0.9
-Controlled By:  ReplicaSet/learn-k8s-9f554cb4f
-Containers:
-  learn-k8s:
-    Container ID:   containerd://7364db8621c1c2d765be9f34e02769d64119e46275861b7c891fec0d680ac69b
-    Image:          learn-k8s:v0.2.0
-    Image ID:       docker.io/library/import-2026-01-11@sha256:dfe52d465ba76f10821218ccf8412fdc629daed3c4f50b935d3fb561031df0e2
-    Port:           8080/TCP
-    Host Port:      0/TCP
-    State:          Running
-      Started:      Sun, 11 Jan 2026 04:36:59 -0600
-    Ready:          True
-    Restart Count:  0
-    Environment:    <none>
-    Mounts:
-      /var/run/secrets/kubernetes.io/serviceaccount from kube-api-access-4stb8 (ro)
-Conditions:
-  Type                        Status
-  PodReadyToStartContainers   True 
-  Initialized                 True 
-  Ready                       True 
-  ContainersReady             True 
-  PodScheduled                True 
-Volumes:
-  kube-api-access-4stb8:
-    Type:                    Projected (a volume that contains injected data from multiple sources)
-    TokenExpirationSeconds:  3607
-    ConfigMapName:           kube-root-ca.crt
-    ConfigMapOptional:       <nil>
-    DownwardAPI:             true
-QoS Class:                   BestEffort
-Node-Selectors:              <none>
-Tolerations:                 node.kubernetes.io/not-ready:NoExecute op=Exists for 300s
-                             node.kubernetes.io/unreachable:NoExecute op=Exists for 300s
-Events:
-  Type    Reason     Age    From               Message
-  ----    ------     ----   ----               -------
-  Normal  Scheduled  5m55s  default-scheduler  Successfully assigned default/learn-k8s-9f554cb4f-6zcgt to kind-control-plane
-  Normal  Pulled     5m55s  kubelet            Container image "learn-k8s:v0.2.0" already present on machine
-  Normal  Created    5m55s  kubelet            Created container learn-k8s
-  Normal  Started    5m55s  kubelet            Started container learn-k8s
+kubectl describe pod learn-k8s-9f554cb4f-6zcgt
 ```
 
 ### Scale out the hard way
 ```bash
-➜  learn-k8s kubectl scale --replicas=3 -f k8s/deployment.yaml
-deployment.apps/learn-k8s scaled
-➜  learn-k8s kubectl get pods                                 
-NAME                        READY   STATUS    RESTARTS   AGE
-learn-k8s-9f554cb4f-6zcgt   1/1     Running   0          8m18s
-learn-k8s-9f554cb4f-7wg8x   1/1     Running   0          5s
-learn-k8s-9f554cb4f-nxj2h   1/1     Running   0          8m19s
+kubectl scale --replicas=3 -f k8s/deployment.yaml
 ```
 
 ### Hit the API again. 
 #### Questions
 Look at the hostnames. 
 - What strategy does the load balancer use?
-
-## Add a "networking" container to the existing pods
-Because we used a 2-stage build for our container image, we have no way of running commands to verify network connectivity. To solve that problem and to learn about cluster networking, we're going to stand up a container in our existing pods.
-
-Add the following to k8s/deployment.yaml:spec:template:spec:containers
-```yaml
-  - name: netshoot-sidecar
-    image: nicolaka/netshoot
-    command: ["/bin/bash", "-c", "while true; do sleep 3600; done"]
-```
-
-And then run `kubectl apply -f k8s/deployment.yaml`
-
-### To see the containers in a pod, you can use `describe`:
-```bash
-kubectl describe pod learn-k8s-bc56b56dc-59gnq
-```
 
 ### You can see both containers in the pod
 ```bash
@@ -606,45 +532,20 @@ kubectl get pod learn-k8s-bc56b56dc-kdtsf -o jsonpath='{range .spec.containers[*
 - netshoot-sidecar
 ```
 
-### Drop into the shell of the networking sidecar container 
-```bash
-kubectl exec -it learn-k8s-bc56b56dc-59gnq -c  netshoot-sidecar -- bash
-```
-
-### Or drop into the dedicated networking pod 
-```bash
-kubectl exec -it net-tester-7b8f987fc-m9h9f -- bash 
-```
-
 ### Run networking commands 
+Ensure you're in the net-tools sidecar: 
 ```bash
-net-tester-7b8f987fc-m9h9f:~# nslookup learn-k8s 
-;; Got recursion not available from 10.96.0.10
-Server:         10.96.0.10
-Address:        10.96.0.10#53
-
-Name:   learn-k8s.default.svc.cluster.local
-Address: 10.96.121.254
-;; Got recursion not available from 10.96.0.10
-
-net-tester-7b8f987fc-m9h9f:~# curl learn-k8s 
-{"time_stamp":"2026-02-02T11:41:10.397106044Z","hostname":"learn-k8s-bc56b56dc-kdtsf"}
+kubectl exec -it deploy/learn-k8s -c net-tools -- bash
 ```
 
-### Scale out net-tester 
 ```bash
-kubectl scale --replicas=2 deploy/net-tester
-deployment.apps/net-tester scaled
+nslookup learn-k8s 
+curl learn-k8s | jq .
 ```
 
-#### Verify 
+## Clean up this cluster 
 ```bash
- ~/src/github.com/montybeatnik/a-gentle-intro-to-k8s   main  kubectl get pods 
-NAME                         READY   STATUS    RESTARTS       AGE
-learn-k8s-bc56b56dc-kdtsf    2/2     Running   6 (3m5s ago)   42d
-learn-k8s-bc56b56dc-mwpnh    2/2     Running   6 (3m5s ago)   42d
-net-tester-7b8f987fc-8vcv9   1/1     Running   0              61s
-net-tester-7b8f987fc-m9h9f   1/1     Running   3 (3m5s ago)   42d
+kind delete cluster --name kind
 ```
 
 ## Add a CNI for BGP Peerings
@@ -670,8 +571,14 @@ kind create cluster --name=calico-cluster --config=config.yaml
 
 ### install calico 
 ```bash
+# run in the operator first
 kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.31.4/manifests/tigera-operator.yaml
+# Check pods 
+kubectl get pods --all-namespaces
+# once pods are Running, issue the following
 kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.31.4/manifests/custom-resources.yaml
+# check pods in Calico namespace 
+kubectl get pods -n calico-system
 ```
 
 ### setup whisker
@@ -694,10 +601,40 @@ wget -qO- http://nginx
 ### IP Pools 
 ```bash
 kubectl get ippools
-NAME                  CREATED AT
-default-ipv4-ippool   2026-03-24T16:00:29Z
+kubectl describe ippools default-ipv4-ippool 
+kubectl get ippools default-ipv4-ippool -o json | jq . # opmit jq if you don't have it. Or download it. 
 ```
 
+#### Example
+```json
+{
+  "apiVersion": "crd.projectcalico.org/v1",
+  "kind": "IPPool",
+  "metadata": {
+    "annotations": {
+      "projectcalico.org/metadata": "{\"generation\":1,\"creationTimestamp\":\"2026-04-01T18:58:29Z\",\"labels\":{\"app.kubernetes.io/managed-by\":\"tigera-operator\"}}"
+    },
+    "creationTimestamp": "2026-04-01T18:58:29Z",
+    "generation": 1,
+    "name": "default-ipv4-ippool",
+    "resourceVersion": "1470",
+    "uid": "a03c76ec-0d3f-4c7f-8b15-01b6a576d527"
+  },
+  "spec": {
+    "allowedUses": [
+      "Workload",
+      "Tunnel"
+    ],
+    "assignmentMode": "Automatic",
+    "blockSize": 26,
+    "cidr": "192.168.0.0/16",
+    "ipipMode": "Never",
+    "natOutgoing": true,
+    "nodeSelector": "all()",
+    "vxlanMode": "CrossSubnet"
+  }
+}
+```
 
 ### BGP Peer Info 
 ```bash
@@ -768,34 +705,8 @@ BIRD v0.3.3+birdv1.6.8 ready.
 kind delete cluster --name calico-cluster
 ```
 
-
-### delete resources
-```bash
-➜  learn-k8s kubectl delete -f k8s/. 
-deployment.apps "learn-k8s" deleted
-service "learn-k8s" deleted
-```
-
-### Delete kind cluster 
-```bash
-➜  learn-k8s kind delete clusters kind
-Deleted nodes: ["kind-control-plane"]
-Deleted clusters: ["kind"]
-➜  learn-k8s kind get clusters        
-No kind clusters found.
-```
-
 ### Delete images
 ```bash
 docker image rm learn-k8s:v0.1.0
 docker image rm learn-k8s:v0.2.0
 ```
-
-
-## TODO
-- [ ] actually provide the proper commands to show the veth pair
-- [x] add ubuntu pods so we can show east/west traffic with ping (no svc needed)
-	- [x] update deployment manifest
-	- [x] show kubectl commands to verify additional containers in pods
-	- [x] exec into sidecar container and run various commands to illustrate cluster networking
-- [ ] add calico as a CNI
