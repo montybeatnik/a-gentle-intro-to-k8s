@@ -72,7 +72,7 @@
 
 In this lab, we experiment with the various tools to learn K8s. 
 
-![flow](flow.png)
+![flow](images/flow.png)
 
 ## What you'll learn
 1. How to package your app into a container
@@ -171,7 +171,7 @@ docker image ls learn-k8s
 ```
 
 #### Example
-![1st-image-size](suitcase-image-size.png)
+![1st-image-size](./images/suitcase-image-size.png)
 
 ### Just the gift
 
@@ -209,7 +209,7 @@ docker image ls learn-k8s
 ```
 
 #### Example
-![gift-image-size](gift-image-size.png)
+![gift-image-size](images/gift-image-size.png)
 
 There is a considerable difference in the image size. 
 
@@ -241,7 +241,7 @@ docker container ls
 ```
 
 #### Example
-![docker-container-ls](docker-container-ls.png)
+![docker-container-ls](images/docker-container-ls.png)
 
 Notice the creative name eloquent_goldstine. If you want to use a more meaningful name, add an arg to the run command. 
 ```bash
@@ -353,7 +353,7 @@ kubectl get pods
 ```
 
 #### Example
-![kubectl-get-pods](kubectl-get-pods.png)
+![kubectl-get-pods](images/kubectl-get-pods.png)
 
 ### Add the local Docker image into the KIND cluster
 KIND runs inside Docker, so it can’t see your local images unless you load them in.
@@ -370,7 +370,7 @@ docker exec -it kind-control-plane crictl images
 ```
 
 #### Example
-![crictl-images](crictl-images.png)
+![crictl-images](images/crictl-images.png)
 
 In case it's not obvious (and why would it be?) the image is `docker.io/library/learn-k8s`. 
 
@@ -430,7 +430,7 @@ ip l
 ```
 
 #### Example
-![ip-l](ip-l.png)
+![ip-l](images/ip-l.png)
 
 Unless you use a CNI like Multus, you will only have 1 eth interface in your pod. That interface is eth0. 
 
@@ -448,18 +448,18 @@ docker exec -it kind-control-plane bash
 ```
 
 #### Example
-![kind-node-ip-l](kind-node-ip-l.png)
+![kind-node-ip-l](images/kind-node-ip-l.png)
 
 Show the address with the following: 
 ```bash
 ip -br addr show veth51438660
 ```
 
-![kind-node-ip-addr](kind-node-ip-addr.png)
+![kind-node-ip-addr](images/kind-node-ip-addr.png)
 
 Let's pop back over to the pod's sidecar container and run a traceroute to google's DNS. 
 
-![traceroute](traceroute.png)
+![traceroute](images/traceroute.png)
 
 Now that we've dabbled with the network plumbing a bit, let's try to hit our API running in the pod. 
 
@@ -470,7 +470,7 @@ curl localhost:8080 | jq
 ```
 
 #### Example
-![failed-curl](failed-curl.png)
+![failed-curl](images/failed-curl.png)
 
 Bummer! Why isn’t it working? We don’t have a NodePort yet—let’s add the service.
 
@@ -484,7 +484,7 @@ kubectl apply -f k8s/service.yaml
 kubectl get svc learn-k8s
 ```
 
-![svc](svc.png)
+![svc](images/svc.png)
 
 You can drop into the shell of one of the PODs and you can hit the API. 
 
@@ -494,7 +494,7 @@ curl 10.244.0.8:8080
 ```
 
 #### Example
-![curl-from-pod](curl-from-pod.png)
+![curl-from-pod](images/curl-from-pod.png)
 
 Nice! We got a response from the API, yet we cannot reach it directly from the shell of our machines proper. 
 
@@ -507,7 +507,7 @@ kubectl patch service learn-k8s -p '{"spec": {"type": "NodePort", "ports": [{"po
 You can now hit the app at `http://localhost:8080`.
 
 ### Load balancer doing its thing
-![curl-load-balancing](curl-load-balancing.png)
+![curl-load-balancing](images/curl-load-balancing.png)
 
 ### K8s commands 
 ```bash
@@ -684,7 +684,6 @@ BIRD v0.3.3+birdv1.6.8 ready.
 192.168.156.64/26  via 172.19.0.4 on eth0 [Mesh_172_19_0_4 16:01:02] (100/0) [i]
                    via 172.19.0.4 on eth0 [Mesh_172_19_0_4 16:01:02] (100/0) [i]
 ```
-
 
 ```bash
 kubectl exec -n calico-system \
