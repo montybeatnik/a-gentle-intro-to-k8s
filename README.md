@@ -37,17 +37,17 @@
     - [Check for pods](#check-for-pods)
       - [Example](#example-4)
     - [Add the local Docker image into the KIND cluster](#add-the-local-docker-image-into-the-kind-cluster)
-    - [View the container in the infra container:](#view-the-container-in-the-infra-container)
+    - [View the container in the infra container](#view-the-container-in-the-infra-container)
       - [Example](#example-5)
-  - [Let's stand up our app inside the cluster.](#lets-stand-up-our-app-inside-the-cluster)
+  - [Let's stand up our app inside the cluster](#lets-stand-up-our-app-inside-the-cluster)
     - [View the PODS](#view-the-pods)
   - [Add a networking sidecar container](#add-a-networking-sidecar-container)
   - [Check the veth pair](#check-the-veth-pair)
     - [Get the list of interfaces](#get-the-list-of-interfaces)
       - [Example](#example-6)
-      - [Get the container ID or name.](#get-the-container-id-or-name)
+      - [Get the container ID or name](#get-the-container-id-or-name)
       - [Example](#example-7)
-  - [Try to hit the API.](#try-to-hit-the-api)
+  - [Try to hit the API](#try-to-hit-the-api)
       - [Example](#example-8)
     - [Deploy your POD and Service](#deploy-your-pod-and-service)
       - [Example](#example-9)
@@ -87,9 +87,9 @@ In this lab, we experiment with the various tools to learn K8s.
 - ***Kind***: runs a k8s cluster with docker containers 
 
 ## Dependencies 
-- [Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/)
-- [kind](https://kind.sigs.k8s.io/docs/user/quick-start)
-- optionally (if you want to run the go code locally) [go](https://go.dev/dl/)
+- Install [Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/)
+- Install [kind](https://kind.sigs.k8s.io/docs/user/quick-start)
+- Optionally (if you want to run the go code locally) install [go](https://go.dev/dl/)
 
 ## Decisions
 ### Why golang?
@@ -362,7 +362,7 @@ KIND runs inside Docker, so it can’t see your local images unless you load the
 kind load docker-image learn-k8s:v0.2.0
 ```
 
-### View the container in the infra container:
+### View the container in the infra container
 This shows the image inside the node container where the cluster will pull it from.
 
 ```bash
@@ -374,7 +374,7 @@ docker exec -it kind-control-plane crictl images
 
 In case it's not obvious (and why would it be?) the image is `docker.io/library/learn-k8s`. 
 
-## Let's stand up our app inside the cluster.
+## Let's stand up our app inside the cluster
 Deploying with Kubernetes differs from Docker in many ways, but networking is the big one. Docker is local networking; Kubernetes is an IP fabric. Each pod gets its own network namespace and IP.
 
 That means there’s a veth pair: one end in the pod, one end on the node. We’ll peek at that shortly.
@@ -438,7 +438,7 @@ The veth pair at index 4 reads `eth0`, which is the local namespace interface, c
 
 We go to the host and look for if9. 
 
-#### Get the container ID or name. 
+#### Get the container ID or name
 ```bash
 docker container ls 
 ```
@@ -463,7 +463,7 @@ Let's pop back over to the pod's sidecar container and run a traceroute to googl
 
 Now that we've dabbled with the network plumbing a bit, let's try to hit our API running in the pod. 
 
-## Try to hit the API. 
+## Try to hit the API
 Before our API was running in a local container via the docker desktop. Now our API is running in a container in a k8s pod. 
 ```bash
 curl localhost:8080 | jq 
