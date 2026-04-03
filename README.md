@@ -4,6 +4,7 @@
   - [What you'll learn](#what-youll-learn)
   - [Glossary](#glossary)
   - [Dependencies](#dependencies)
+  - [References](#references)
   - [Decisions](#decisions)
     - [Why golang?](#why-golang)
     - [Why Docker](#why-docker)
@@ -90,6 +91,11 @@ In this lab, we experiment with the various tools to learn K8s.
 - Install [Docker Desktop](https://docs.docker.com/desktop/setup/install/mac-install/)
 - Install [kind](https://kind.sigs.k8s.io/docs/user/quick-start)
 - Optionally (if you want to run the go code locally) install [go](https://go.dev/dl/)
+
+## References
+- [K8s](https://kubernetes.io/docs/concepts/architecture/)
+- [Calico](https://docs.tigera.io/calico/latest/about/#networking)
+- [containerd](https://containerd.io)
 
 ## Decisions
 ### Why golang?
